@@ -1,0 +1,36 @@
+[Unit]
+Description=Fortune Stall
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fortune-stall
+Group=fortune-stall
+WorkingDirectory=/opt/fortune-stall
+EnvironmentFile=/etc/fortune-stall.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/fortune-stall/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 3900 --workers 1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+
+# 小服务器保护：单进程、限制内存，并只允许 data 目录写入。
+MemoryMax=192M
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/opt/fortune-stall/data
+
+[Install]
+WantedBy=multi-user.target
+

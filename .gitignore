@@ -1,8 +1,13 @@
-__pycache__/
-*.pyc
 .venv/
+skills/
 data/
 .cache_src/
-skills/
-static/tarot/*
+__pycache__/
+*.py[cod]
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+static/tarot/*.webp
 !static/tarot/.gitkeep

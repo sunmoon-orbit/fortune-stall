@@ -3,6 +3,9 @@
 夜市尽头的一张算卦小摊 —— 自托管的占卜小站。
 **小六壬 / 六爻 / 塔罗**三味齐备：骰子铜钱在服务端摇、韦特原画逐张翻、每一卦落印进账本。
 
+本仓库是为独立移动端部署维护的 Fork；上游项目见
+[wave2234/fortune-stall](https://github.com/wave2234/fortune-stall)。
+
 > 🧭 **内功心法在姊妹仓库 [divination-skills](https://github.com/wave2234/divination-skills)**
 > —— 小六壬、六爻、塔罗三套技能包（`SKILL.md` 工作流 + 资料分册 + 起卦脚本）。
 > 本摊直接调用它起卦排盘；把里面的 `SKILL.md` 喂给你的 AI，它就知道怎么断这张卦面。
@@ -31,7 +34,7 @@
 ## 快速开始
 
 ```bash
-git clone https://github.com/wave2234/fortune-stall
+git clone https://github.com/sunmoon-orbit/fortune-stall
 cd fortune-stall
 
 # 1) 请入心法(起卦脚本与资料)
@@ -55,9 +58,41 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | `PERSONA` | `摊主` | 卦账落款的摊主名 |
 | `FORTUNE_DB` | `./data/fortune.db` | 卦账 SQLite 位置 |
 | `SKILLS_DIR` | `./skills` | divination-skills 所在目录 |
-| `FORTUNE_TOKEN` | 空 | 设了则所有 API 要求 `Bearer` 令牌；前端在浏览器控制台执行 `localStorage.setItem('fortune_token','…')` 配对 |
+| `FORTUNE_TOKEN` | 空 | 设了则所有业务 API 要求 `Bearer` 令牌；手机端会显示通行令页面，验证成功后仅保存在当前浏览器 |
 
 > ⚠️ 默认只监听本机。放公网请自行加认证层（反向代理 Basic Auth / Cloudflare Access 等），或至少设 `FORTUNE_TOKEN`。
+
+## 独立服务器部署
+
+仓库内附了适合小型 Linux VPS 的模板：
+
+- `deploy/fortune-stall.service`：单进程 systemd 服务，带 192MB 内存上限与最小写权限
+- `deploy/nginx.conf.example`：独立子域名反向代理，并对 API 做基础限速
+- `deploy/fortune-stall.env.example`：环境变量示例，不含真实密钥
+
+推荐目录为 `/opt/fortune-stall`，使用独立系统用户 `fortune-stall`。部署前生成通行令：
+
+```bash
+openssl rand -hex 32
+```
+
+把结果只写入 `/etc/fortune-stall.env` 的 `FORTUNE_TOKEN`，权限设为 `600`，不要贴进聊天、日志或提交到仓库。随后复制服务模板并启动：
+
+```bash
+sudo install -m 644 deploy/fortune-stall.service /etc/systemd/system/fortune-stall.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now fortune-stall
+curl http://127.0.0.1:3900/healthz
+```
+
+再把 Nginx 示例里的 `fortune.example.com` 换成真实子域名，启用站点并配置 HTTPS。页面第一次打开会直接询问通行令，不需要手机浏览器控制台。
+
+### 数据与隐私
+
+- 问事、卦面和断语只写入 `FORTUNE_DB` 指向的 SQLite 文件
+- `.gitignore` 已排除数据库、环境变量、依赖技能包、下载缓存和本地牌面
+- 通行令不会由服务端返回；前端只保存于当前浏览器的 `localStorage`，请求时作为同源 `Authorization` 头发送
+- `/api/fortune/auth-status` 只返回是否启用了鉴权，不返回任何密钥内容
 
 ## 把卦交给 AI 断
 
@@ -76,6 +111,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | GET | `/api/fortune/recent?n=8` | 卦账列表 |
 | GET | `/api/fortune/session/{id}` | 单卦全档 |
 | POST | `/api/fortune/verdict` | 断语记档（`id, verdict`）|
+| GET | `/api/fortune/auth-status` | 仅查询是否启用了通行令，不返回通行令内容 |
 
 ## 牌面来源与版权
 

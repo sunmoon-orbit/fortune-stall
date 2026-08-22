@@ -236,10 +236,29 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .rbox .rbtns .rgo{border-color:var(--gold-line);color:var(--lantern)}
 .rbox .rbtns button:active{opacity:.6}
 
-.gate{position:fixed;inset:0;background:rgba(10,10,12,.92);z-index:80;display:none;place-items:center;
-  text-align:center;font-size:14.5px;line-height:2.1;color:var(--paper)}
+.gate{position:fixed;inset:0;background:rgba(7,9,15,.88);z-index:80;display:none;place-items:center;
+  padding:24px;overflow:auto;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .gate.on{display:grid}
-.gate a{color:var(--lantern)}
+.gatecard{position:relative;width:min(100%,390px);overflow:hidden;text-align:center;padding:28px 22px 22px;
+  border:1px solid var(--gold-line);border-radius:22px;background:
+  radial-gradient(circle at 50% -16%,rgba(217,164,65,.16),transparent 42%),
+  linear-gradient(165deg,rgba(35,35,48,.98),rgba(20,20,26,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.045)}
+.gatecard::before,.gatecard::after{content:'';position:absolute;width:72px;height:72px;border:1px solid rgba(217,164,65,.13);
+  border-radius:50%;pointer-events:none}
+.gatecard::before{left:-38px;top:-34px}.gatecard::after{right:-45px;bottom:-42px}
+.gatesigil{display:block;width:68px;height:68px;margin:0 auto 14px;color:var(--lantern)}
+.gateeyebrow{font-size:10px;letter-spacing:.46em;padding-left:.46em;color:var(--muted)}
+.gate h2{font:400 23px/1.4 var(--serif);letter-spacing:.12em;margin:9px 0 8px;padding-left:.12em}
+.gatecopy{font-size:12.5px;line-height:1.8;color:var(--muted);margin:0 auto 16px;max-width:280px}
+.gateform{display:flex;flex-direction:column;gap:10px}
+.gateform input{height:46px;text-align:center;letter-spacing:.12em;background:rgba(255,255,255,.055);
+  border-color:rgba(217,164,65,.2)}
+.gateform .primary{margin:0}
+.gateerror{min-height:20px;color:#d58a72;font-size:12px;line-height:1.6}
+.gatehint{font-size:10.5px;line-height:1.7;color:var(--dim);margin-top:7px}
+.gateclear{font-size:11.5px;color:var(--muted);padding:7px 10px;margin-top:2px;text-decoration:underline;
+  text-decoration-color:rgba(138,133,124,.35);text-underline-offset:4px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:86px;background:#2b2521;border:1px solid var(--line);
   border-radius:12px;padding:10px 16px;font-size:13px;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:82vw}
 .toast.on{opacity:1}
@@ -336,27 +355,76 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
   </div>
 </div>
 
-<div class="gate" id="gate"><div>灯还没点着——<br>服务端设了 FORTUNE_TOKEN 鉴权。<br><span style="font-size:12px;color:var(--muted)">在浏览器控制台执行<br>localStorage.setItem('fortune_token','你的token')<br>后刷新即可。</span></div></div>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gatecard">
+    <svg class="gatesigil" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M52 12a27 27 0 1 0 16 45A24 24 0 1 1 52 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M24 54c8-7 24-7 32 0M29 60c6-4 16-4 22 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".65"/>
+      <circle cx="25" cy="24" r="1.5" fill="currentColor"/><circle cx="61" cy="29" r="1" fill="currentColor" opacity=".7"/>
+    </svg>
+    <div class="gateeyebrow">夜 市 通 行 令</div>
+    <h2 id="gateTitle">灯火只为熟客亮起</h2>
+    <p class="gatecopy">输入部署时设置的通行令，便可进入问心处。验证成功后，这台设备会替你记住。</p>
+    <form class="gateform" id="gateForm" onsubmit="unlock(event)">
+      <input id="gateToken" type="password" autocomplete="current-password" placeholder="输入通行令" aria-label="通行令">
+      <button class="primary" id="gateSubmit" type="submit">点 亮 灯 火</button>
+      <p class="gateerror" id="gateError" aria-live="polite"></p>
+    </form>
+    <button class="gateclear" type="button" onclick="forgetToken()">忘记这台设备保存的通行令</button>
+    <p class="gatehint">通行令仅保存在当前浏览器，并只发送给这个站点。</p>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
 'use strict';
 /* ════════════════════ 基础 ════════════════════ */
-const TOKEN = localStorage.getItem('fortune_token') || '';  /* 服务端未设 FORTUNE_TOKEN 时无需配置 */
+let TOKEN = localStorage.getItem('fortune_token') || '';  /* 服务端未设 FORTUNE_TOKEN 时无需配置 */
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const el = h => {const d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild;};
 function toast(t){const x=$('toast');x.textContent=t;x.classList.add('on');
   clearTimeout(x._t);x._t=setTimeout(()=>x.classList.remove('on'),2600);}
+function showGate(message=''){
+  $('gateError').textContent=message;
+  $('gateToken').value='';
+  $('gate').classList.add('on');
+  setTimeout(()=>$('gateToken').focus(),80);}
+function hideGate(){$('gate').classList.remove('on');$('gateError').textContent='';}
+async function unlock(ev){
+  ev.preventDefault();
+  const candidate=$('gateToken').value.trim();
+  if(!candidate){$('gateError').textContent='先写下通行令。';return;}
+  const btn=$('gateSubmit');btn.disabled=true;btn.textContent='验 证 中 …';
+  try{
+    const r=await fetch('/api/fortune/recent?n=1',{headers:{Authorization:'Bearer '+candidate},cache:'no-store'});
+    if(r.status===401){$('gateError').textContent='通行令没有对上，再检查一下。';return;}
+    if(!r.ok)throw Error('暂时没能连上摊位');
+    TOKEN=candidate;localStorage.setItem('fortune_token',candidate);hideGate();toast('灯火已亮，欢迎回来');
+  }catch(e){$('gateError').textContent=e.message||'暂时没能连上摊位';}
+  finally{btn.disabled=false;btn.textContent='点 亮 灯 火';}}
+function forgetToken(){TOKEN='';localStorage.removeItem('fortune_token');$('gateToken').value='';
+  $('gateError').textContent='这台设备保存的通行令已清除。';$('gateToken').focus();}
 async function api(path,opt={}){
   const hd={'Content-Type':'application/json',...(opt.headers||{})};
   if(TOKEN)hd.Authorization='Bearer '+TOKEN;
   const r=await fetch(path,{...opt,headers:hd});
-  if(r.status===401){$('gate').classList.add('on');throw Error('未登录');}
+  if(r.status===401){showGate(TOKEN?'旧通行令已经失效，请重新输入。':'请输入通行令。');throw Error('未登录');}
   return r;}
+async function checkAuth(){
+  try{
+    const status=await fetch('/api/fortune/auth-status',{cache:'no-store'});
+    if(!status.ok)return;
+    const info=await status.json();
+    if(!info.required)return;
+    if(!TOKEN){showGate();return;}
+    const probe=await fetch('/api/fortune/recent?n=1',{headers:{Authorization:'Bearer '+TOKEN},cache:'no-store'});
+    if(probe.status===401)showGate('旧通行令已经失效，请重新输入。');
+  }catch(_){/* 网络错误留给实际操作时提示 */}}
 function go(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   $(v).classList.add('on');window.scrollTo(0,0);}
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+checkAuth();
 
 /* ════════════════════ 星幕 Starfield ════════════════════
    独立模块, 之后别的玩法可整体拷走: Starfield.mount(canvas) 即用。

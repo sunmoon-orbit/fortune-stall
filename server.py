@@ -25,14 +25,14 @@ app = FastAPI(title="问心处 fortune-stall", docs_url=None, redoc_url=None)
 async def security_headers(request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
+    # 1120：允许被归巢首页（memory.ravenlove.cc）嵌进小窗打开；别的站仍然不许嵌
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
         "connect-src 'self'; object-src 'none'; base-uri 'none'; "
-        "frame-ancestors 'none'",
+        "frame-ancestors 'self' https://memory.ravenlove.cc",
     )
     return response
 
